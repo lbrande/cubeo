@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Not,
+    vec::IntoIter,
+};
 
 const NDICE: usize = 6;
 
@@ -21,84 +25,61 @@ impl Game {
             turn: Color::Red,
         }
     }
-}
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct AddAction {
-    pos: Pos,
-    color: Color,
-}
-
-impl Action for AddAction {
-    fn perform(self, game: &mut Game) {
-        let die = Die {
-            color: self.color,
-            value: 1,
-        };
-        game.board.insert(self.pos, die);
-    }
-}
-
-impl AddAction {
-    pub fn pos(self) -> Pos {
-        self.pos
+    pub fn actions(&self) -> HashSet<Action> {
+        let mut actions = HashSet::new();
+        self.insert_add_actions(&mut actions);
+        actions
     }
 
-    pub fn color(self) -> Color {
-        self.color
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct MergeAction {
-    from: Pos,
-    to: Pos,
-}
-
-impl Action for MergeAction {
-    fn perform(self, game: &mut Game) {
-        let from_die = game.board.remove(&self.from).unwrap();
-        game.board
-            .entry(self.to)
-            .and_modify(|e| e.value += from_die.value);
-    }
-}
-
-impl MergeAction {
-    pub fn from(self) -> Pos {
-        self.from
+    fn insert_add_actions(&self, actions: &mut HashSet<Action>) {
+        for (pos, die) in self.board.iter() {
+            if die.color == self.turn {
+                for pos in pos.adjacents() {
+                    if !self.board.contains_key(&pos)
+                        && !pos.adjacents().any(|pos| self.has_color(pos, !die.color))
+                    {
+                        actions.insert(Action::Add(pos, self.turn));
+                    }
+                }
+            }
+        }
     }
 
-    pub fn to(self) -> Pos {
-        self.to
+    fn has_color(&self, pos: Pos, color: Color) -> bool {
+        self.board
+            .get(&pos)
+            .filter(|die| die.color == color)
+            .is_some()
     }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct MoveAction {
-    from: Pos,
-    to: Pos,
+pub enum Action {
+    Add(Pos, Color),
+    Merge(Pos, Pos),
+    Move(Pos, Pos),
 }
 
-impl Action for MoveAction {
+impl Action {
     fn perform(self, game: &mut Game) {
-        let die = game.board.remove(&self.from).unwrap();
-        game.board.insert(self.to, die);
+        match self {
+            Action::Add(pos, color) => {
+                let die = Die { color, value: 1 };
+                game.board.insert(pos, die);
+            }
+            Action::Merge(from, to) => {
+                let from_die = game.board.remove(&from).unwrap();
+                game.board
+                    .entry(to)
+                    .and_modify(|die| die.value += from_die.value);
+            }
+            Action::Move(from, to) => {
+                let die = game.board.remove(&from).unwrap();
+                game.board.insert(to, die);
+            }
+        }
     }
-}
-
-impl MoveAction {
-    pub fn from(self) -> Pos {
-        self.from
-    }
-
-    pub fn to(self) -> Pos {
-        self.to
-    }
-}
-
-trait Action {
-    fn perform(self, game: &mut Game);
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -123,5 +104,23 @@ pub enum Color {
     Black,
 }
 
+impl Not for Color {
+    type Output = Color;
+    fn not(self) -> Self::Output {
+        if self == Self::Red {
+            Self::Black
+        } else {
+            Self::Red
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Pos(usize, usize);
+
+impl Pos {
+    fn adjacents(self) -> IntoIter<Pos> {
+        let Pos(x, y) = self;
+        vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x, y + 1), Pos(x + 1, y)].into_iter()
+    }
+}
