@@ -64,17 +64,17 @@ pub enum Action {
 impl Action {
     fn perform(self, game: &mut Game) {
         match self {
-            Action::Add(pos, color) => {
+            Self::Add(pos, color) => {
                 let die = Die { color, value: 1 };
                 game.board.insert(pos, die);
             }
-            Action::Merge(from, to) => {
+            Self::Merge(from, to) => {
                 let from_die = game.board.remove(&from).unwrap();
                 game.board
                     .entry(to)
                     .and_modify(|die| die.value += from_die.value);
             }
-            Action::Move(from, to) => {
+            Self::Move(from, to) => {
                 let die = game.board.remove(&from).unwrap();
                 game.board.insert(to, die);
             }
@@ -116,7 +116,7 @@ impl Not for Color {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Pos(usize, usize);
+pub struct Pos(i32, i32);
 
 impl Pos {
     fn adjacents(self) -> IntoIter<Pos> {
