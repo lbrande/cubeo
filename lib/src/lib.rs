@@ -5,6 +5,7 @@ use std::{
 };
 
 const NDICE: usize = 6;
+const MAX_VALUE: usize = 6;
 
 #[derive(Clone, Debug)]
 pub struct Game {
@@ -31,10 +32,11 @@ impl Game {
         }
     }
 
-    pub fn perform_action(&mut self, action: Action) {
-        action.perform(self);
+    pub fn perform_action(&mut self, action: Action) -> Option<Color> {
+        let winner = action.perform(self);
         self.turn = !self.turn;
         self.update_actions();
+        winner.or_else(|| Some(!self.turn).filter(|_| self.actions.is_empty()))
     }
 
     pub fn board(&self) -> &HashMap<Pos, Die> {
@@ -172,20 +174,26 @@ pub enum Action {
 }
 
 impl Action {
-    fn perform(self, game: &mut Game) {
+    fn perform(self, game: &mut Game) -> Option<Color> {
         match self {
             Self::Add(pos) => {
                 game.board.insert(pos, Die::with_color(game.turn));
+                None
             }
             Self::Merge(from, to) => {
                 let from_die = game.board.remove(&from).unwrap();
-                game.board
-                    .entry(to)
-                    .and_modify(|die| die.value += from_die.value);
+                let to_die = game.board.get_mut(&to).unwrap();
+                to_die.value += from_die.value;
+                if to_die.value > MAX_VALUE {
+                    Some(game.turn)
+                } else {
+                    None
+                }
             }
             Self::Move(from, to) => {
                 let die = game.board.remove(&from).unwrap();
                 game.board.insert(to, die);
+                None
             }
         }
     }
