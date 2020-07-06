@@ -9,6 +9,7 @@ const NDICE: usize = 6;
 #[derive(Clone, Debug)]
 pub struct Game {
     board: HashMap<Pos, Die>,
+    actions: HashSet<Action>,
     turn: Color,
 }
 
@@ -26,65 +27,72 @@ impl Game {
         Self {
             board,
             turn: Color::Red,
+            actions: HashSet::new(),
         }
     }
 
     pub fn perform_action(&mut self, action: Action) {
         action.perform(self);
         self.turn = !self.turn;
+        self.update_actions();
     }
 
-    pub fn actions(&self) -> HashSet<Action> {
-        let mut actions = HashSet::new();
-        self.insert_add_actions(&mut actions);
-        self.insert_merge_actions(&mut actions);
-        self.insert_move_actions(&mut actions);
-        actions
+    pub fn board(&self) -> &HashMap<Pos, Die> {
+        &self.board
     }
 
-    fn insert_add_actions(&self, actions: &mut HashSet<Action>) {
+    pub fn actions(&self) -> &HashSet<Action> {
+        &self.actions
+    }
+
+    pub fn turn(&self) -> Color {
+        self.turn
+    }
+
+    fn update_actions(&mut self) {
+        self.actions.clear();
+        self.update_add_actions();
+        self.update_merge_actions();
+        self.update_move_actions();
+    }
+
+    fn update_add_actions(&mut self) {
         for (pos, die) in self.board.iter() {
             if die.color == self.turn {
                 for pos in pos.adjacents() {
                     if self.is_empty(pos)
-                        && !pos.adjacents().any(|pos| self.has_color(!die.color, pos))
+                        && !pos.adjacents().any(|pos| self.has_color(pos, !die.color))
                     {
-                        actions.insert(Action::Add(pos, self.turn));
+                        self.actions.insert(Action::Add(pos));
                     }
                 }
             }
         }
     }
 
-    fn insert_merge_actions(&self, actions: &mut HashSet<Action>) {
+    fn update_merge_actions(&mut self) {
         for (&from, die) in self.board.iter() {
             if die.color == self.turn && self.is_free(from) {
                 for to in from.adjacents() {
-                    if self.has_color(die.color, to) {
-                        actions.insert(Action::Merge(from, to));
+                    if self.has_color(to, die.color) {
+                        self.actions.insert(Action::Merge(from, to));
                     }
                 }
             }
         }
     }
 
-    fn insert_move_actions(&self, actions: &mut HashSet<Action>) {
+    fn update_move_actions(&mut self) {
         for (&from, die) in self.board.iter() {
             if die.color == self.turn && self.is_free(from) {
-                let mut tos = HashSet::with_capacity(die.value * 4);
+                let mut tos = HashSet::new();
                 tos.insert(from);
                 for _ in 0..die.value {
-                    let old_tos = tos.clone().into_iter();
-                    tos.clear();
-                    for old_to in old_tos {
-                        for to in self.steps(old_to) {
-                            tos.insert(to);
-                        }
-                    }
+                    tos = tos.iter().flat_map(|&from| self.steps(from)).collect();
                 }
                 tos.remove(&from);
                 for to in tos {
-                    actions.insert(Action::Move(from, to));
+                    self.actions.insert(Action::Move(from, to));
                 }
             }
         }
@@ -148,7 +156,7 @@ impl Game {
         !self.board.contains_key(&pos)
     }
 
-    fn has_color(&self, color: Color, pos: Pos) -> bool {
+    fn has_color(&self, pos: Pos, color: Color) -> bool {
         self.board
             .get(&pos)
             .filter(|die| die.color == color)
@@ -158,7 +166,7 @@ impl Game {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Action {
-    Add(Pos, Color),
+    Add(Pos),
     Merge(Pos, Pos),
     Move(Pos, Pos),
 }
@@ -166,8 +174,8 @@ pub enum Action {
 impl Action {
     fn perform(self, game: &mut Game) {
         match self {
-            Self::Add(pos, color) => {
-                game.board.insert(pos, Die::with_color(color));
+            Self::Add(pos) => {
+                game.board.insert(pos, Die::with_color(game.turn));
             }
             Self::Merge(from, to) => {
                 let from_die = game.board.remove(&from).unwrap();
