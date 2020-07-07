@@ -133,7 +133,7 @@ impl Game {
                         steps.push(pos);
                     }
                 } else if d_x != 0 {
-                    // horixontal orthogonals
+                    // horizontal orthogonals
                     let pos = Pos(x + d_x, y);
                     let a_pos = Pos(x + d_x, y - 1);
                     let b_pos = Pos(x + d_x, y + 1);
@@ -184,11 +184,7 @@ impl Action {
                 let from_die = game.board.remove(&from).unwrap();
                 let to_die = game.board.get_mut(&to).unwrap();
                 to_die.value += from_die.value;
-                if to_die.value > MAX_VALUE {
-                    Some(game.turn)
-                } else {
-                    None
-                }
+                Some(game.turn).filter(|_| to_die.value > MAX_VALUE)
             }
             Self::Move(from, to) => {
                 let die = game.board.remove(&from).unwrap();
