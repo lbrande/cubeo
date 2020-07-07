@@ -126,10 +126,7 @@ impl Game {
                     let pos = Pos(x + d_x, y + d_y);
                     let a_pos = Pos(x + d_x, y);
                     let b_pos = Pos(x, y + d_y);
-                    if self.is_empty(pos)
-                        && ((self.is_empty(a_pos) && !self.is_empty(b_pos))
-                            || (!self.is_empty(a_pos) && self.is_empty(b_pos)))
-                    {
+                    if self.is_empty(pos) && self.is_empty(a_pos) ^ self.is_empty(b_pos) {
                         steps.push(pos);
                     }
                 } else if d_x != 0 {
