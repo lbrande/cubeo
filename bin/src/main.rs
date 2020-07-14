@@ -56,11 +56,16 @@ fn draw_die(context: &Context, Pos(x, y): Pos, die: Die) {
     let xc = x + DIE_SIZE / 2.0;
     let yc = y + DIE_SIZE / 2.0;
     match die.value() {
-        1 => {
-            context.arc(xc, yc, DIE_SIZE / 10.0, 0.0, 2.0 * PI);
-            context.fill();
+        1 => draw_dot(context, xc, yc),
+        2 => {
+            draw_dot(context, xc - DIE_SIZE / 4.0, yc + DIE_SIZE / 4.0);
+            draw_dot(context, xc + DIE_SIZE / 4.0, yc - DIE_SIZE / 4.0);
         }
-        2 => {}
         _ => {}
     }
+}
+
+fn draw_dot(context: &Context, xc: f64, yc: f64) {
+    context.arc(xc, yc, DIE_SIZE / 10.0, 0.0, 2.0 * PI);
+    context.fill();
 }
