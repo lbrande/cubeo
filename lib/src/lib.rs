@@ -221,16 +221,15 @@ pub enum Color {
 impl Not for Color {
     type Output = Color;
     fn not(self) -> Self::Output {
-        if self == Self::Red {
-            Self::Black
-        } else {
-            Self::Red
+        match self {
+            Self::Red => Self::Black,
+            _ => Self::Red,
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Pos(i32, i32);
+pub struct Pos(pub i32, pub i32);
 
 impl Pos {
     fn adjacents(self) -> IntoIter<Pos> {
