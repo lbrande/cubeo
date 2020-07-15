@@ -25,11 +25,13 @@ impl Game {
         let mut board = HashMap::with_capacity(NDICE * 2);
         board.insert(Pos(0, 0), Die::with_color(Color::Red));
         board.insert(Pos(0, 1), Die::with_color(Color::Black));
-        Self {
+        let mut game = Self {
             board,
             turn: Color::Red,
             actions: HashSet::new(),
-        }
+        };
+        game.update_actions();
+        game
     }
 
     pub fn perform_action(&mut self, action: Action) -> Option<Color> {
