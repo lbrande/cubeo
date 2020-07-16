@@ -22,16 +22,19 @@ impl Default for Game {
 
 impl Game {
     pub fn new() -> Self {
-        let mut board = HashMap::with_capacity(NDICE * 2);
-        board.insert(Pos(0, 0), Die::with_color(Color::Red));
-        board.insert(Pos(0, 1), Die::with_color(Color::Black));
-        let mut game = Self {
-            board,
+        Self {
+            board: HashMap::with_capacity(NDICE * 2),
             turn: Color::Red,
             actions: HashSet::new(),
-        };
-        game.update_actions();
-        game
+        }
+        .init()
+    }
+
+    fn init(mut self) -> Self {
+        self.board.insert(Pos(0, 1), Die::with_color(Color::Black));
+        self.board.insert(Pos(0, 0), Die::with_color(Color::Red));
+        self.update_actions();
+        self
     }
 
     pub fn perform_action(&mut self, action: Action) -> Option<Color> {
