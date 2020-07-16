@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    ops::{Deref, Not},
+    ops::Not,
     vec::IntoIter,
 };
 

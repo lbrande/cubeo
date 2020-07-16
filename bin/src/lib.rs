@@ -70,17 +70,18 @@ impl GameCanvas {
 
     fn init_event(&mut self) {
         let game = Rc::clone(&self.game);
-        self.canvas.connect_button_press_event(move |canvas, event| {
-            let mut game = game.borrow_mut();
-            let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
-            let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
-            let pos = Pos(x, y);
-            if let Some(&action) = game.actions().get(&Action::Add(pos)) {
-                game.perform_action(action);
-                canvas.queue_draw();
-            }
-            Inhibit(false)
-        });
+        self.canvas
+            .connect_button_press_event(move |canvas, event| {
+                let mut game = game.borrow_mut();
+                let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
+                let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
+                let pos = Pos(x, y);
+                if let Some(&action) = game.actions().get(&Action::Add(pos)) {
+                    game.perform_action(action);
+                    canvas.queue_draw();
+                }
+                Inhibit(false)
+            });
         self.canvas.add_events(EventMask::BUTTON_PRESS_MASK);
     }
 
