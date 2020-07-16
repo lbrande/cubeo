@@ -1,15 +1,16 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    ops::Not,
+    ops::{Deref, Not},
     vec::IntoIter,
 };
 
-const NDICE: usize = 6;
+const MAX_NDICE: usize = 6;
 const MAX_VALUE: usize = 6;
 
 #[derive(Clone, Debug)]
 pub struct Game {
     board: HashMap<Pos, Die>,
+    ndice: [usize; 2],
     actions: HashSet<Action>,
     turn: Color,
 }
@@ -23,7 +24,8 @@ impl Default for Game {
 impl Game {
     pub fn new() -> Self {
         Self {
-            board: HashMap::with_capacity(NDICE * 2),
+            board: HashMap::with_capacity(MAX_NDICE * 2),
+            ndice: [1; 2],
             turn: Color::Red,
             actions: HashSet::new(),
         }
@@ -64,13 +66,15 @@ impl Game {
     }
 
     fn update_add_actions(&mut self) {
-        for (pos, die) in self.board.iter() {
-            if die.color == self.turn {
-                for pos in pos.adjacents() {
-                    if self.is_empty(pos)
-                        && !pos.adjacents().any(|pos| self.has_color(pos, !die.color))
-                    {
-                        self.actions.insert(Action::Add(pos));
+        if self.ndice[usize::from(self.turn)] < MAX_NDICE {
+            for (pos, die) in self.board.iter() {
+                if die.color == self.turn {
+                    for pos in pos.adjacents() {
+                        if self.is_empty(pos)
+                            && !pos.adjacents().any(|pos| self.has_color(pos, !die.color))
+                        {
+                            self.actions.insert(Action::Add(pos));
+                        }
                     }
                 }
             }
@@ -180,12 +184,14 @@ impl Action {
         match self {
             Self::Add(pos) => {
                 game.board.insert(pos, Die::with_color(game.turn));
+                game.ndice[usize::from(game.turn)] += 1;
                 None
             }
             Self::Merge(from, to) => {
                 let from_die = game.board.remove(&from).unwrap();
                 let to_die = game.board.get_mut(&to).unwrap();
                 to_die.value += from_die.value;
+                game.ndice[usize::from(game.turn)] -= 1;
                 Some(game.turn).filter(|_| to_die.value > MAX_VALUE)
             }
             Self::Move(from, to) => {
@@ -229,6 +235,15 @@ impl Not for Color {
         match self {
             Self::Red => Self::Black,
             _ => Self::Red,
+        }
+    }
+}
+
+impl From<Color> for usize {
+    fn from(color: Color) -> Self {
+        match color {
+            Color::Red => 0,
+            _ => 1,
         }
     }
 }

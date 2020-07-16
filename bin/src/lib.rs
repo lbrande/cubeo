@@ -1,4 +1,5 @@
 use cairo::Context;
+use gdk::EventMask;
 use gtk::prelude::*;
 use gtk::{DrawingArea, Widget};
 use lib::{Action, Color, Die, Game, Pos};
@@ -19,6 +20,7 @@ const HIGHLIGHT_EMPTY_POS_COLOR: CairoColor = CairoColor::RGBA(0.0, 0.0, 0.0, 0.
 pub struct GameCanvas {
     game: Rc<RefCell<Game>>,
     canvas: DrawingArea,
+    selected_pos: Option<Pos>,
 }
 
 impl Default for GameCanvas {
@@ -32,12 +34,19 @@ impl GameCanvas {
         Self {
             game: Rc::new(RefCell::new(Game::new())),
             canvas: DrawingArea::new(),
+            selected_pos: None,
         }
         .init()
     }
 
-    fn init(self) -> Self {
+    fn init(mut self) -> Self {
         self.canvas.set_size_request(SIZE as i32, SIZE as i32);
+        self.init_draw();
+        self.init_event();
+        self
+    }
+
+    fn init_draw(&mut self) {
         let game = Rc::clone(&self.game);
         self.canvas.connect_draw(move |_, context| {
             let game = game.borrow();
@@ -49,7 +58,7 @@ impl GameCanvas {
             for action in game.actions() {
                 match action {
                     &Action::Add(pos) => {
-                        highlight_empty_pos(context, pos);
+                        highlight_pos(context, pos, HIGHLIGHT_EMPTY_POS_COLOR);
                     }
                     Action::Merge(_, _) => {}
                     Action::Move(_, _) => {}
@@ -57,7 +66,22 @@ impl GameCanvas {
             }
             Inhibit(false)
         });
-        self
+    }
+
+    fn init_event(&mut self) {
+        let game = Rc::clone(&self.game);
+        self.canvas.connect_button_press_event(move |canvas, event| {
+            let mut game = game.borrow_mut();
+            let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
+            let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
+            let pos = Pos(x, y);
+            if let Some(&action) = game.actions().get(&Action::Add(pos)) {
+                game.perform_action(action);
+                canvas.queue_draw();
+            }
+            Inhibit(false)
+        });
+        self.canvas.add_events(EventMask::BUTTON_PRESS_MASK);
     }
 
     pub fn widget(&self) -> &impl IsA<Widget> {
@@ -77,8 +101,8 @@ fn draw_die(context: &Context, Pos(x, y): Pos, die: Die) {
     draw_dots(context, x, y, die);
 }
 
-fn highlight_empty_pos(context: &Context, Pos(x, y): Pos) {
-    set_color(context, HIGHLIGHT_EMPTY_POS_COLOR);
+fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
+    set_color(context, color);
     let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
     context.rectangle(x, y, DIE_SIZE, DIE_SIZE);
