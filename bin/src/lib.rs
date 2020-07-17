@@ -115,11 +115,15 @@ fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
 }
 
 fn die_rectangle(context: &Context, x: f64, y: f64) {
+    let xleft = x + CORNER_SIZE;
+    let xright = x + DIE_SIZE - CORNER_SIZE;
+    let ytop = y + CORNER_SIZE;
+    let ybottom = y + DIE_SIZE - CORNER_SIZE;
     context.new_sub_path();
-    context.arc(x + CORNER_SIZE, y + CORNER_SIZE, CORNER_SIZE, PI, 1.5 * PI);
-    context.arc(x + DIE_SIZE - CORNER_SIZE, y + CORNER_SIZE, CORNER_SIZE, 1.5 * PI, 0.0);
-    context.arc(x + DIE_SIZE - CORNER_SIZE, y + DIE_SIZE - CORNER_SIZE, CORNER_SIZE, 0.0, 0.5 * PI);
-    context.arc(x + CORNER_SIZE, y + DIE_SIZE - CORNER_SIZE, CORNER_SIZE, 0.5 * PI, PI);
+    context.arc(xleft, ytop, CORNER_SIZE, PI, 1.5 * PI);
+    context.arc(xright, ytop, CORNER_SIZE, 1.5 * PI, 0.0);
+    context.arc(xright, ybottom, CORNER_SIZE, 0.0, 0.5 * PI);
+    context.arc(xleft, ybottom, CORNER_SIZE, 0.5 * PI, PI);
     context.close_path();
 }
 
