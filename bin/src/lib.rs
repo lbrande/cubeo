@@ -1,4 +1,4 @@
-use cairo::Context;
+use cairo::{Context};
 use gdk::EventMask;
 use gtk::prelude::*;
 use gtk::{DrawingArea, Widget};
@@ -11,10 +11,11 @@ const DIE_SIZE: f64 = SQUARE_SIZE - 4.0;
 const ORIGIN_X: f64 = SIZE / 2.0 - DIE_SIZE / 2.0;
 const ORIGIN_Y: f64 = SIZE / 2.0 + 2.0;
 
-const BACKGROUND_COLOR: CairoColor = CairoColor::RGB(0.0, 1.0 / 3.0, 0.0);
-const RED_COLOR: CairoColor = CairoColor::RGB(1.0, 0.0, 0.0);
-const BLACK_COLOR: CairoColor = CairoColor::RGB(0.0, 0.0, 0.0);
-const DOT_COLOR: CairoColor = CairoColor::RGB(1.0, 1.0, 1.0);
+const BACKGROUND_COLOR: CairoColor = CairoColor::RGB(0.15, 0.35, 0.15);
+const RED_COLOR: CairoColor = CairoColor::RGB(0.55, 0.15, 0.15);
+const BLACK_COLOR: CairoColor = CairoColor::RGB(0.15, 0.15, 0.15);
+const DOT_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.85);
+const BORDER_COLOR: CairoColor = CairoColor::RGBA(1.0, 1.0, 1.0, 0.2);
 const HIGHLIGHT_EMPTY_POS_COLOR: CairoColor = CairoColor::RGBA(0.0, 0.0, 0.0, 0.4);
 
 pub struct GameCanvas {
@@ -99,6 +100,9 @@ fn draw_die(context: &Context, Pos(x, y): Pos, die: Die) {
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
     context.rectangle(x, y, DIE_SIZE, DIE_SIZE);
     context.fill();
+    set_color(context, BORDER_COLOR);
+    context.rectangle(x, y, DIE_SIZE, DIE_SIZE);
+    context.stroke();
     draw_dots(context, x, y, die);
 }
 
