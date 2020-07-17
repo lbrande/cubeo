@@ -1,4 +1,4 @@
-use cairo::{Context};
+use cairo::Context;
 use gdk::EventMask;
 use gtk::prelude::*;
 use gtk::{DrawingArea, Widget};
@@ -8,6 +8,7 @@ use std::{cell::RefCell, f64::consts::PI, rc::Rc};
 const SQUARE_SIZE: f64 = 60.0;
 const SIZE: f64 = SQUARE_SIZE * 12.0;
 const DIE_SIZE: f64 = SQUARE_SIZE - 4.0;
+const CORNER_SIZE: f64 = 6.0;
 const ORIGIN_X: f64 = SIZE / 2.0 - DIE_SIZE / 2.0;
 const ORIGIN_Y: f64 = SIZE / 2.0 + 2.0;
 
@@ -98,10 +99,9 @@ fn draw_die(context: &Context, Pos(x, y): Pos, die: Die) {
     }
     let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
-    context.rectangle(x, y, DIE_SIZE, DIE_SIZE);
-    context.fill();
+    die_rectangle(context, x, y);
+    context.fill_preserve();
     set_color(context, BORDER_COLOR);
-    context.rectangle(x, y, DIE_SIZE, DIE_SIZE);
     context.stroke();
     draw_dots(context, x, y, die);
 }
@@ -110,8 +110,17 @@ fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
     set_color(context, color);
     let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
-    context.rectangle(x, y, DIE_SIZE, DIE_SIZE);
+    die_rectangle(context, x, y);
     context.fill();
+}
+
+fn die_rectangle(context: &Context, x: f64, y: f64) {
+    context.new_sub_path();
+    context.arc(x + CORNER_SIZE, y + CORNER_SIZE, CORNER_SIZE, PI, 1.5 * PI);
+    context.arc(x + DIE_SIZE - CORNER_SIZE, y + CORNER_SIZE, CORNER_SIZE, 1.5 * PI, 0.0);
+    context.arc(x + DIE_SIZE - CORNER_SIZE, y + DIE_SIZE - CORNER_SIZE, CORNER_SIZE, 0.0, 0.5 * PI);
+    context.arc(x + CORNER_SIZE, y + DIE_SIZE - CORNER_SIZE, CORNER_SIZE, 0.5 * PI, PI);
+    context.close_path();
 }
 
 fn draw_dots(context: &Context, x: f64, y: f64, die: Die) {
@@ -159,6 +168,7 @@ fn draw_dot(context: &Context, x: f64, y: f64, xalign: i32, yalign: i32) {
     context.fill();
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum CairoColor {
     RGB(f64, f64, f64),
     RGBA(f64, f64, f64, f64),
