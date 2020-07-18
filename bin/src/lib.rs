@@ -21,9 +21,9 @@ const RED_COLOR: CairoColor = CairoColor::RGB(0.55, 0.15, 0.15);
 const BLACK_COLOR: CairoColor = CairoColor::RGB(0.15, 0.15, 0.15);
 const DOT_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.85);
 const BORDER_COLOR: CairoColor = CairoColor::RGBA(1.0, 1.0, 1.0, 0.2);
-const HIGHLIGHT_COLOR: CairoColor = CairoColor::RGBA(0.0, 0.0, 0.0, 0.4);
-const HIGHLIGHT_DIE_COLOR: CairoColor = CairoColor::RGBA(1.0, 1.0, 1.0, 0.4);
-const SELECT_DIE_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.15);
+const TARGET_COLOR: CairoColor = CairoColor::RGBA(0.0, 0.0, 0.0, 0.4);
+const TARGET_DIE_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.85);
+const SELECTED_DIE_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.15);
 
 pub struct GameCanvas {
     game: Rc<RefCell<Game>>,
@@ -65,12 +65,12 @@ impl GameCanvas {
                 draw_die(context, pos, die);
             }
             if let Some(pos) = selected_pos.get() {
-                select_die(context, pos);
+                highlight_die(context, pos, SELECTED_DIE_COLOR);
                 for action in game.actions() {
                     if action.from() == Some(pos) {
                         match action {
-                            Action::Merge(_, to) => highlight_pos(context, *to, HIGHLIGHT_COLOR),
-                            Action::Move(_, to) => highlight_pos(context, *to, HIGHLIGHT_COLOR),
+                            Action::Merge(_, to) => highlight_die(context, *to, TARGET_DIE_COLOR),
+                            Action::Move(_, to) => highlight_pos(context, *to, TARGET_COLOR),
                             _ => {}
                         }
                     }
@@ -78,9 +78,9 @@ impl GameCanvas {
             } else {
                 for action in game.actions() {
                     match action {
-                        Action::Add(pos) => highlight_pos(context, *pos, HIGHLIGHT_COLOR),
-                        Action::Merge(from, _) => highlight_pos(context, *from, HIGHLIGHT_COLOR),
-                        Action::Move(from, _) => highlight_pos(context, *from, HIGHLIGHT_COLOR),
+                        Action::Add(pos) => highlight_pos(context, *pos, TARGET_COLOR),
+                        Action::Merge(from, _) => highlight_die(context, *from, TARGET_DIE_COLOR),
+                        Action::Move(from, _) => highlight_die(context, *from, TARGET_DIE_COLOR),
                     }
                 }
             }
@@ -143,8 +143,8 @@ fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
     context.fill();
 }
 
-fn select_die(context: &Context, Pos(x, y): Pos) {
-    set_color(context, SELECT_DIE_COLOR);
+fn highlight_die(context: &Context, Pos(x, y): Pos, color: CairoColor) {
+    set_color(context, color);
     let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
     die_rectangle(context, x, y);
