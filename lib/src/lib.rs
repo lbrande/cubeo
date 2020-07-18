@@ -99,7 +99,7 @@ impl Game {
                 let mut tos = HashSet::new();
                 tos.insert(from);
                 for _ in 0..die.value {
-                    tos = tos.iter().flat_map(|&from| self.steps(from)).collect();
+                    tos = tos.iter().flat_map(|&pos| self.steps(pos, from)).collect();
                 }
                 tos.remove(&from);
                 for to in tos {
@@ -125,33 +125,36 @@ impl Game {
         visited.len() == self.board.len()
     }
 
-    fn steps(&self, from: Pos) -> IntoIter<Pos> {
-        let Pos(x, y) = from;
+    fn steps(&self, Pos(x, y): Pos, moved_pos: Pos) -> IntoIter<Pos> {
         let mut steps = Vec::with_capacity(4);
+        let is_empty = |pos| pos == moved_pos || self.is_empty(pos);
         for &d_x in &[-1i32, 0, 1] {
             for &d_y in &[-1i32, 0, 1] {
+                let pos = Pos(x + d_x, y + d_y);
                 if d_x.abs() + d_y.abs() == 2 {
-                    // diagonals
-                    let pos = Pos(x + d_x, y + d_y);
-                    let a_pos = Pos(x + d_x, y);
-                    let b_pos = Pos(x, y + d_y);
-                    if self.is_empty(pos) && self.is_empty(a_pos) ^ self.is_empty(b_pos) {
+                    let s1 = Pos(x + d_x, y);
+                    let s2 = Pos(x, y + d_y);
+                    if is_empty(pos) && is_empty(s1) ^ is_empty(s2) {
                         steps.push(pos);
                     }
                 } else if d_x != 0 {
-                    // horizontal orthogonals
-                    let pos = Pos(x + d_x, y);
-                    let a_pos = Pos(x + d_x, y - 1);
-                    let b_pos = Pos(x + d_x, y + 1);
-                    if self.is_empty(pos) && (!self.is_empty(a_pos) || !self.is_empty(b_pos)) {
+                    let c1 = Pos(x + d_x, y - 1);
+                    let s1 = Pos(x, y - 1);
+                    let c2 = Pos(x + d_x, y + 1);
+                    let s2 = Pos(x, y + 1);
+                    if is_empty(pos)
+                        && ((!is_empty(c1) && !is_empty(s1)) || (!is_empty(c2) && !is_empty(s2)))
+                    {
                         steps.push(pos);
                     }
                 } else if d_y != 0 {
-                    // vertical orthogonals
-                    let pos = Pos(x, y + d_y);
-                    let a_pos = Pos(x - 1, y + d_y);
-                    let b_pos = Pos(x + 1, y + d_y);
-                    if self.is_empty(pos) && (!self.is_empty(a_pos) || !self.is_empty(b_pos)) {
+                    let c1 = Pos(x - 1, y + d_y);
+                    let s1 = Pos(x - 1, y);
+                    let c2 = Pos(x + 1, y + d_y);
+                    let s2 = Pos(x + 1, y);
+                    if is_empty(pos)
+                        && ((!is_empty(c1) && !is_empty(s1)) || (!is_empty(c2) && !is_empty(s2)))
+                    {
                         steps.push(pos);
                     }
                 }
@@ -180,6 +183,14 @@ pub enum Action {
 }
 
 impl Action {
+    pub fn from(self) -> Option<Pos> {
+        match self {
+            Self::Merge(from, _) => Some(from),
+            Self::Move(from, _) => Some(from),
+            _ => None,
+        }
+    }
+
     fn perform(self, game: &mut Game) -> Option<Color> {
         match self {
             Self::Add(pos) => {

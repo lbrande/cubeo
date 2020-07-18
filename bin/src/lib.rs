@@ -3,7 +3,11 @@ use gdk::EventMask;
 use gtk::prelude::*;
 use gtk::{DrawingArea, Widget};
 use lib::{Action, Color, Die, Game, Pos};
-use std::{cell::RefCell, f64::consts::PI, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    f64::consts::PI,
+    rc::Rc,
+};
 
 const SQUARE_SIZE: f64 = 60.0;
 const SIZE: f64 = SQUARE_SIZE * 12.0;
@@ -17,12 +21,14 @@ const RED_COLOR: CairoColor = CairoColor::RGB(0.55, 0.15, 0.15);
 const BLACK_COLOR: CairoColor = CairoColor::RGB(0.15, 0.15, 0.15);
 const DOT_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.85);
 const BORDER_COLOR: CairoColor = CairoColor::RGBA(1.0, 1.0, 1.0, 0.2);
-const HIGHLIGHT_EMPTY_POS_COLOR: CairoColor = CairoColor::RGBA(0.0, 0.0, 0.0, 0.4);
+const HIGHLIGHT_COLOR: CairoColor = CairoColor::RGBA(0.0, 0.0, 0.0, 0.4);
+const HIGHLIGHT_DIE_COLOR: CairoColor = CairoColor::RGBA(1.0, 1.0, 1.0, 0.4);
+const SELECT_DIE_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.15);
 
 pub struct GameCanvas {
     game: Rc<RefCell<Game>>,
     canvas: DrawingArea,
-    selected_pos: Option<Pos>,
+    selected_pos: Rc<Cell<Option<Pos>>>,
 }
 
 impl Default for GameCanvas {
@@ -36,7 +42,7 @@ impl GameCanvas {
         Self {
             game: Rc::new(RefCell::new(Game::new())),
             canvas: DrawingArea::new(),
-            selected_pos: None,
+            selected_pos: Rc::new(Cell::new(None)),
         }
         .init()
     }
@@ -50,6 +56,7 @@ impl GameCanvas {
 
     fn init_draw(&mut self) {
         let game = Rc::clone(&self.game);
+        let selected_pos = Rc::clone(&self.selected_pos);
         self.canvas.connect_draw(move |_, context| {
             let game = game.borrow();
             set_color(context, BACKGROUND_COLOR);
@@ -57,13 +64,24 @@ impl GameCanvas {
             for (&pos, &die) in game.board().iter() {
                 draw_die(context, pos, die);
             }
-            for action in game.actions() {
-                match action {
-                    &Action::Add(pos) => {
-                        highlight_pos(context, pos, HIGHLIGHT_EMPTY_POS_COLOR);
+            if let Some(pos) = selected_pos.get() {
+                select_die(context, pos);
+                for action in game.actions() {
+                    if action.from() == Some(pos) {
+                        match action {
+                            Action::Merge(_, to) => highlight_pos(context, *to, HIGHLIGHT_COLOR),
+                            Action::Move(_, to) => highlight_pos(context, *to, HIGHLIGHT_COLOR),
+                            _ => {}
+                        }
                     }
-                    Action::Merge(_, _) => {}
-                    Action::Move(_, _) => {}
+                }
+            } else {
+                for action in game.actions() {
+                    match action {
+                        Action::Add(pos) => highlight_pos(context, *pos, HIGHLIGHT_COLOR),
+                        Action::Merge(from, _) => highlight_pos(context, *from, HIGHLIGHT_COLOR),
+                        Action::Move(from, _) => highlight_pos(context, *from, HIGHLIGHT_COLOR),
+                    }
                 }
             }
             Inhibit(false)
@@ -72,16 +90,27 @@ impl GameCanvas {
 
     fn init_event(&mut self) {
         let game = Rc::clone(&self.game);
+        let selected_pos = Rc::clone(&self.selected_pos);
         self.canvas
             .connect_button_press_event(move |canvas, event| {
                 let mut game = game.borrow_mut();
                 let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
                 let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
                 let pos = Pos(x, y);
-                if let Some(&action) = game.actions().get(&Action::Add(pos)) {
+                if let Some(from) = selected_pos.get() {
+                    if let Some(&action) = (game.actions().get(&Action::Merge(from, pos)))
+                        .or_else(|| game.actions().get(&Action::Move(from, pos)))
+                    {
+                        game.perform_action(action);
+                    }
+                    selected_pos.set(None);
+                } else if let Some(&action) = game.actions().get(&Action::Add(pos)) {
                     game.perform_action(action);
-                    canvas.queue_draw();
+                    selected_pos.set(None);
+                } else if (game.actions().iter()).any(|action| action.from() == Some(pos)) {
+                    selected_pos.set(Some(pos));
                 }
+                canvas.queue_draw();
                 Inhibit(false)
             });
         self.canvas.add_events(EventMask::BUTTON_PRESS_MASK);
@@ -112,6 +141,14 @@ fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
     die_rectangle(context, x, y);
     context.fill();
+}
+
+fn select_die(context: &Context, Pos(x, y): Pos) {
+    set_color(context, SELECT_DIE_COLOR);
+    let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
+    let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
+    die_rectangle(context, x, y);
+    context.stroke();
 }
 
 fn die_rectangle(context: &Context, x: f64, y: f64) {
