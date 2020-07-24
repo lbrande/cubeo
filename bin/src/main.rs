@@ -25,7 +25,6 @@ fn setup(app: &Application) {
 }
 
 fn setup_canvas(window: Rc<ApplicationWindow>, canvas: &GameCanvas) {
-    let window = Rc::clone(&window);
     let data = canvas.data();
     canvas.widget().connect_draw(move |_, _| {
         let data = data.borrow();
