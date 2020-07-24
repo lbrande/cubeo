@@ -13,6 +13,7 @@ pub struct Game {
     ndice: [usize; 2],
     actions: HashSet<Action>,
     turn: Color,
+    winner: Option<Color>,
 }
 
 impl Default for Game {
@@ -26,8 +27,9 @@ impl Game {
         Self {
             board: HashMap::with_capacity(MAX_NDICE * 2),
             ndice: [1; 2],
-            turn: Color::Red,
             actions: HashSet::new(),
+            turn: Color::Red,
+            winner: None,
         }
         .init()
     }
@@ -40,10 +42,12 @@ impl Game {
     }
 
     pub fn perform_action(&mut self, action: Action) -> Option<Color> {
-        let winner = action.perform(self);
-        self.turn = !self.turn;
-        self.update_actions();
-        winner.or_else(|| Some(!self.turn).filter(|_| self.actions.is_empty()))
+        self.winner = action.perform(self).or_else(|| {
+            self.turn = !self.turn;
+            self.update_actions();
+            Some(!self.turn).filter(|_| self.actions.is_empty())
+        });
+        self.winner
     }
 
     pub fn board(&self) -> &HashMap<Pos, Die> {
@@ -56,6 +60,10 @@ impl Game {
 
     pub fn turn(&self) -> Color {
         self.turn
+    }
+
+    pub fn winner(&self) -> Option<Color> {
+        self.winner
     }
 
     fn update_actions(&mut self) {

@@ -3,11 +3,7 @@ use gdk::EventMask;
 use gtk::prelude::*;
 use gtk::{DrawingArea, Widget};
 use lib::{Action, Color, Die, Game, Pos};
-use std::{
-    cell::{Cell, RefCell},
-    f64::consts::PI,
-    rc::Rc,
-};
+use std::{cell::RefCell, f64::consts::PI, rc::Rc};
 
 const SQUARE_SIZE: f64 = 60.0;
 const SIZE: f64 = SQUARE_SIZE * 12.0;
@@ -26,9 +22,8 @@ const TARGET_DIE_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.85);
 const SELECTED_DIE_COLOR: CairoColor = CairoColor::RGB(0.85, 0.85, 0.15);
 
 pub struct GameCanvas {
-    game: Rc<RefCell<Game>>,
+    data: Rc<RefCell<GameCanvasData>>,
     canvas: DrawingArea,
-    selected_pos: Rc<Cell<Option<Pos>>>,
 }
 
 impl Default for GameCanvas {
@@ -40,9 +35,11 @@ impl Default for GameCanvas {
 impl GameCanvas {
     pub fn new() -> Self {
         Self {
-            game: Rc::new(RefCell::new(Game::new())),
+            data: Rc::new(RefCell::new(GameCanvasData {
+                game: Game::new(),
+                selected_pos: None,
+            })),
             canvas: DrawingArea::new(),
-            selected_pos: Rc::new(Cell::new(None)),
         }
         .init()
     }
@@ -55,32 +52,33 @@ impl GameCanvas {
     }
 
     fn init_draw(&mut self) {
-        let game = Rc::clone(&self.game);
-        let selected_pos = Rc::clone(&self.selected_pos);
+        let data = Rc::clone(&self.data);
         self.canvas.connect_draw(move |_, context| {
-            let game = game.borrow();
+            let data = data.borrow();
             set_color(context, BACKGROUND_COLOR);
             context.paint();
-            for (&pos, &die) in game.board().iter() {
+            for (&pos, &die) in data.game.board().iter() {
                 draw_die(context, pos, die);
             }
-            if let Some(pos) = selected_pos.get() {
-                highlight_die(context, pos, SELECTED_DIE_COLOR);
-                for action in game.actions() {
-                    if action.from() == Some(pos) {
-                        match action {
-                            Action::Merge(_, to) => highlight_die(context, *to, TARGET_DIE_COLOR),
-                            Action::Move(_, to) => highlight_pos(context, *to, TARGET_COLOR),
-                            _ => {}
+            if data.game.winner().is_none() {
+                if let Some(pos) = data.selected_pos {
+                    target_die(context, pos, SELECTED_DIE_COLOR);
+                    for action in data.game.actions() {
+                        if action.from() == Some(pos) {
+                            match action {
+                                Action::Merge(_, to) => target_die(context, *to, TARGET_DIE_COLOR),
+                                Action::Move(_, to) => target_pos(context, *to, TARGET_COLOR),
+                                _ => {}
+                            }
                         }
                     }
-                }
-            } else {
-                for action in game.actions() {
-                    match action {
-                        Action::Add(pos) => highlight_pos(context, *pos, TARGET_COLOR),
-                        Action::Merge(from, _) => highlight_die(context, *from, TARGET_DIE_COLOR),
-                        Action::Move(from, _) => highlight_die(context, *from, TARGET_DIE_COLOR),
+                } else {
+                    for action in data.game.actions() {
+                        match action {
+                            Action::Add(pos) => target_pos(context, *pos, TARGET_COLOR),
+                            Action::Merge(from, _) => target_die(context, *from, TARGET_DIE_COLOR),
+                            Action::Move(from, _) => target_die(context, *from, TARGET_DIE_COLOR),
+                        }
                     }
                 }
             }
@@ -89,28 +87,30 @@ impl GameCanvas {
     }
 
     fn init_event(&mut self) {
-        let game = Rc::clone(&self.game);
-        let selected_pos = Rc::clone(&self.selected_pos);
+        let data = Rc::clone(&self.data);
         self.canvas
             .connect_button_press_event(move |canvas, event| {
-                let mut game = game.borrow_mut();
-                let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
-                let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
-                let pos = Pos(x, y);
-                if let Some(from) = selected_pos.get() {
-                    if let Some(&action) = (game.actions().get(&Action::Merge(from, pos)))
-                        .or_else(|| game.actions().get(&Action::Move(from, pos)))
+                let mut data = data.borrow_mut();
+                if data.game.winner().is_none() {
+                    let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
+                    let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
+                    let pos = Pos(x, y);
+                    if let Some(from) = data.selected_pos {
+                        if let Some(&action) = (data.game.actions().get(&Action::Merge(from, pos)))
+                            .or_else(|| data.game.actions().get(&Action::Move(from, pos)))
+                        {
+                            data.game.perform_action(action);
+                        }
+                        data.selected_pos = None;
+                    } else if let Some(&action) = data.game.actions().get(&Action::Add(pos)) {
+                        data.game.perform_action(action);
+                        data.selected_pos = None;
+                    } else if (data.game.actions().iter()).any(|action| action.from() == Some(pos))
                     {
-                        game.perform_action(action);
+                        data.selected_pos = Some(pos)
                     }
-                    selected_pos.set(None);
-                } else if let Some(&action) = game.actions().get(&Action::Add(pos)) {
-                    game.perform_action(action);
-                    selected_pos.set(None);
-                } else if (game.actions().iter()).any(|action| action.from() == Some(pos)) {
-                    selected_pos.set(Some(pos));
+                    canvas.queue_draw();
                 }
-                canvas.queue_draw();
                 Inhibit(false)
             });
         self.canvas.add_events(EventMask::BUTTON_PRESS_MASK);
@@ -118,6 +118,21 @@ impl GameCanvas {
 
     pub fn widget(&self) -> &impl IsA<Widget> {
         &self.canvas
+    }
+
+    pub fn data(&self) -> Rc<RefCell<GameCanvasData>> {
+        Rc::clone(&self.data)
+    }
+}
+
+pub struct GameCanvasData {
+    game: Game,
+    selected_pos: Option<Pos>,
+}
+
+impl GameCanvasData {
+    pub fn game(&self) -> &Game {
+        &self.game
     }
 }
 
@@ -135,7 +150,7 @@ fn draw_die(context: &Context, Pos(x, y): Pos, die: Die) {
     draw_dots(context, x, y, die);
 }
 
-fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
+fn target_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
     set_color(context, color);
     let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
@@ -143,7 +158,7 @@ fn highlight_pos(context: &Context, Pos(x, y): Pos, color: CairoColor) {
     context.fill();
 }
 
-fn highlight_die(context: &Context, Pos(x, y): Pos, color: CairoColor) {
+fn target_die(context: &Context, Pos(x, y): Pos, color: CairoColor) {
     set_color(context, color);
     let x = ORIGIN_X + x as f64 * SQUARE_SIZE;
     let y = ORIGIN_Y - y as f64 * SQUARE_SIZE;
@@ -198,7 +213,12 @@ fn draw_dots(context: &Context, x: f64, y: f64, die: Die) {
             draw_dot(context, x, y, -1, 0);
             draw_dot(context, x, y, 1, 0);
         }
-        _ => {}
+        _ => {
+            let xc = x + DIE_SIZE / 2.0;
+            let yc = y + DIE_SIZE / 2.0;
+            context.arc(xc, yc, DIE_SIZE / 2.5, 0.0, 2.0 * PI);
+            context.fill();
+        }
     }
 }
 
