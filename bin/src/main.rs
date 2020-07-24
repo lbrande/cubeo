@@ -14,7 +14,6 @@ fn main() {
 fn setup(app: &Application) {
     let window = ApplicationWindow::new(app);
     window.set_resizable(false);
-    window.set_title("Cubeo");
     let window = Rc::new(window);
 
     let canvas = GameCanvas::new();
