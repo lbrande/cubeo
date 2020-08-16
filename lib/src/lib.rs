@@ -176,10 +176,7 @@ impl Game {
     }
 
     fn has_color(&self, pos: Pos, color: Color) -> bool {
-        self.board
-            .get(&pos)
-            .filter(|die| die.color == color)
-            .is_some()
+        self.board.get(&pos).filter(|die| die.color == color).is_some()
     }
 }
 

@@ -35,10 +35,7 @@ impl Default for GameCanvas {
 impl GameCanvas {
     pub fn new() -> Self {
         Self {
-            data: Rc::new(RefCell::new(GameCanvasData {
-                game: Game::new(),
-                selected_pos: None,
-            })),
+            data: Rc::new(RefCell::new(GameCanvasData { game: Game::new(), selected_pos: None })),
             canvas: DrawingArea::new(),
         }
         .init()
@@ -88,31 +85,29 @@ impl GameCanvas {
 
     fn init_event(&mut self) {
         let data = Rc::clone(&self.data);
-        self.canvas
-            .connect_button_press_event(move |canvas, event| {
-                let mut data = data.borrow_mut();
-                if data.game.winner().is_none() {
-                    let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
-                    let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
-                    let pos = Pos(x, y);
-                    if let Some(from) = data.selected_pos {
-                        if let Some(&action) = (data.game.actions().get(&Action::Merge(from, pos)))
-                            .or_else(|| data.game.actions().get(&Action::Move(from, pos)))
-                        {
-                            data.game.perform_action(action);
-                        }
-                        data.selected_pos = None;
-                    } else if let Some(&action) = data.game.actions().get(&Action::Add(pos)) {
-                        data.game.perform_action(action);
-                        data.selected_pos = None;
-                    } else if (data.game.actions().iter()).any(|action| action.from() == Some(pos))
+        self.canvas.connect_button_press_event(move |canvas, event| {
+            let mut data = data.borrow_mut();
+            if data.game.winner().is_none() {
+                let x = ((event.get_position().0 - ORIGIN_X) / SQUARE_SIZE).floor() as i32;
+                let y = ((ORIGIN_Y - event.get_position().1) / SQUARE_SIZE).ceil() as i32;
+                let pos = Pos(x, y);
+                if let Some(from) = data.selected_pos {
+                    if let Some(&action) = (data.game.actions().get(&Action::Merge(from, pos)))
+                        .or_else(|| data.game.actions().get(&Action::Move(from, pos)))
                     {
-                        data.selected_pos = Some(pos)
+                        data.game.perform_action(action);
                     }
-                    canvas.queue_draw();
+                    data.selected_pos = None;
+                } else if let Some(&action) = data.game.actions().get(&Action::Add(pos)) {
+                    data.game.perform_action(action);
+                    data.selected_pos = None;
+                } else if (data.game.actions().iter()).any(|action| action.from() == Some(pos)) {
+                    data.selected_pos = Some(pos)
                 }
-                Inhibit(false)
-            });
+                canvas.queue_draw();
+            }
+            Inhibit(false)
+        });
         self.canvas.add_events(EventMask::BUTTON_PRESS_MASK);
     }
 
