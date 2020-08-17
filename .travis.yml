@@ -1,6 +1,7 @@
 language: rust
 cache: cargo
 before_script:
+  - sudo apt update
   - sudo apt -y install libgtk-3-dev
   - rustup component add clippy
 script:
