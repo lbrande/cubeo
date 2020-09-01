@@ -4,11 +4,11 @@ use std::{
     vec::IntoIter,
 };
 
-const MAX_NDICE: usize = 6;
+const  MAX_NDICE: usize = 6;
 const MAX_VALUE: usize = 6;
 
 #[derive(Clone, Debug)]
-pub struct Game {
+pub  struct Game {
     board: HashMap<Pos, Die>,
     ndice: [usize; 2],
     actions: HashSet<Action>,
@@ -156,10 +156,10 @@ impl Game {
                         steps.push(pos);
                     }
                 } else if d_y != 0 {
-                    let c1 = Pos(x - 1, y + d_y);
-                    let s1 = Pos(x - 1, y);
-                    let c2 = Pos(x + 1, y + d_y);
-                    let s2 = Pos(x + 1, y);
+                        let c1 = Pos(x - 1, y + d_y);
+                        let s1 = Pos(x - 1, y);
+                        let c2 = Pos(x + 1, y + d_y);
+                        let s2 = Pos(x + 1, y);
                     if is_empty(pos)
                         && ((!is_empty(c1) && !is_empty(s1)) || (!is_empty(c2) && !is_empty(s2)))
                     {
